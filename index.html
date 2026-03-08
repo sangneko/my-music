@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SANG Music</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { background: #09090b; color: #fafafa; font-family: sans-serif; }
+        .active-song { border: 1px solid #10b981; background: rgba(16, 185, 129, 0.1); }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-black text-emerald-500 mb-8 flex items-center gap-2">
+            <i data-lucide="music"></i> SANG PLAYER
+        </h1>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            <div id="playlist" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                <p class="text-zinc-500 italic">Đang tải danh sách nhạc...</p>
+            </div>
+
+            <div class="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 text-center sticky top-6">
+                <div class="w-full aspect-square bg-emerald-600 rounded-2xl mb-6 flex items-center justify-center shadow-2xl">
+                    <i data-lucide="disc" class="w-32 h-32 text-black/20 animate-spin-slow"></i>
+                </div>
+                <h2 id="current-title" class="text-xl font-bold truncate">Chọn bài hát</h2>
+                <p class="text-zinc-500 text-sm mb-6">S3.cloufly.vn</p>
+
+                <audio id="main-audio" class="hidden"></audio>
+
+                <div class="flex justify-center items-center gap-6 mb-8">
+                    <button onclick="prevSong()"><i data-lucide="skip-back"></i></button>
+                    <button id="play-btn" onclick="togglePlay()" class="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center text-black">
+                        <i data-lucide="play" id="play-icon"></i>
+                    </button>
+                    <button onclick="nextSong()"><i data-lucide="skip-forward"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let songs = [];
+        let currentIdx = 0;
+        const audio = document.getElementById('main-audio');
+        const playIcon = document.getElementById('play-icon');
+
+        async function init() {
+            const res = await fetch('/api/music');
+            songs = await res.json();
+            renderPlaylist();
+            lucide.createIcons();
+        }
+
+        function renderPlaylist() {
+            const container = document.getElementById('playlist');
+            container.innerHTML = songs.map((s, i) => `
+                <div onclick="playSong(${i})" class="p-4 bg-zinc-900/50 rounded-xl cursor-pointer hover:bg-zinc-800 transition song-item" id="song-${i}">
+                    <p class="font-medium truncate">${s.name}</p>
+                </div>
+            `).join('');
+        }
+
+        function playSong(i) {
+            currentIdx = i;
+            audio.src = songs[i].url;
+            document.getElementById('current-title').innerText = songs[i].name;
+            
+            document.querySelectorAll('.song-item').forEach(el => el.classList.remove('active-song'));
+            document.getElementById(`song-${i}`).classList.add('active-song');
+            
+            audio.play();
+            updateIcon(true);
+        }
+
+        function togglePlay() {
+            if (audio.paused) { audio.play(); updateIcon(true); }
+            else { audio.pause(); updateIcon(false); }
+        }
+
+        function updateIcon(playing) {
+            playIcon.setAttribute('data-lucide', playing ? 'pause' : 'play');
+            lucide.createIcons();
+        }
+
+        function nextSong() { playSong((currentIdx + 1) % songs.length); }
+        function prevSong() { playSong((currentIdx - 1 + songs.length) % songs.length); }
+
+        audio.onended = nextSong;
+        init();
+    </script>
+</body>
+</html>
