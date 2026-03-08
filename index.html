@@ -3,94 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SANG Music</title>
+    <title>SANG Cloud Music</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #09090b; color: #fafafa; font-family: sans-serif; }
-        .active-song { border: 1px solid #10b981; background: rgba(16, 185, 129, 0.1); }
+        body { font-family: 'Inter', sans-serif; background: #000; color: #fff; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .song-item:hover { background: rgba(16, 185, 129, 0.1); }
+        .active-song { border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.15) !important; }
+        input[type="range"] { accent-color: #10b981; }
+        @keyframes rotate-disc { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .rotating { animation: rotate-disc 10s linear infinite; }
     </style>
 </head>
-<body class="p-6">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl font-black text-emerald-500 mb-8 flex items-center gap-2">
-            <i data-lucide="music"></i> SANG PLAYER
-        </h1>
-
-        <div class="grid md:grid-cols-2 gap-8">
-            <div id="playlist" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                <p class="text-zinc-500 italic">Đang tải danh sách nhạc...</p>
+<body class="min-h-screen flex flex-col">
+    <nav class="p-6 flex justify-between items-center glass sticky top-0 z-50">
+        <h1 class="text-2xl font-black text-emerald-500 tracking-tighter">SANG PLAYER</h1>
+        <div class="flex items-center gap-4">
+            <div class="relative hidden md:block">
+                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-zinc-500"></i>
+                <input type="text" id="search" oninput="searchSongs()" placeholder="Tìm nhạc..." class="bg-zinc-900 border-none rounded-full py-2 pl-10 pr-4 w-64 focus:ring-2 focus:ring-emerald-500 text-sm">
             </div>
+            <label class="bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2 rounded-full font-bold text-sm cursor-pointer flex items-center gap-2 transition">
+                <i data-lucide="upload-cloud" class="w-4 h-4"></i> <span>Tải lên</span>
+                <input type="file" id="fileInput" class="hidden" accept="audio/*" onchange="uploadAction()">
+            </label>
+        </div>
+    </nav>
 
-            <div class="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 text-center sticky top-6">
-                <div class="w-full aspect-square bg-emerald-600 rounded-2xl mb-6 flex items-center justify-center shadow-2xl">
-                    <i data-lucide="disc" class="w-32 h-32 text-black/20 animate-spin-slow"></i>
+    <div class="flex-1 max-w-7xl mx-auto w-full grid lg:grid-cols-12 gap-6 p-6">
+        <div class="lg:col-span-8 space-y-2 overflow-y-auto max-h-[70vh] pr-2" id="playlist">
+            <div class="p-20 text-center text-zinc-600">Đang quét kho nhạc của bạn...</div>
+        </div>
+
+        <div class="lg:col-span-4">
+            <div class="glass p-8 rounded-[2.5rem] sticky top-28 text-center overflow-hidden">
+                <div id="disc-container" class="w-56 h-56 mx-auto mb-8 rounded-full border-8 border-zinc-900 shadow-2xl relative flex items-center justify-center bg-zinc-800">
+                    <i data-lucide="music" class="w-20 h-20 text-zinc-700"></i>
+                    <div class="absolute w-12 h-12 bg-black rounded-full border-4 border-zinc-900"></div>
                 </div>
-                <h2 id="current-title" class="text-xl font-bold truncate">Chọn bài hát</h2>
-                <p class="text-zinc-500 text-sm mb-6">S3.cloufly.vn</p>
+                
+                <h2 id="song-title" class="text-xl font-bold truncate px-4">Sẵn sàng</h2>
+                <p id="song-size" class="text-zinc-500 text-sm mb-6">Chọn bài hát để phát</p>
 
-                <audio id="main-audio" class="hidden"></audio>
+                <audio id="player" class="hidden"></audio>
+
+                <div class="px-4 mb-8">
+                    <input type="range" id="progress" value="0" class="w-full h-1 bg-zinc-800 rounded-lg cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-zinc-500 mt-2">
+                        <span id="time-now">0:00</span>
+                        <span id="time-total">0:00</span>
+                    </div>
+                </div>
 
                 <div class="flex justify-center items-center gap-6 mb-8">
-                    <button onclick="prevSong()"><i data-lucide="skip-back"></i></button>
-                    <button id="play-btn" onclick="togglePlay()" class="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center text-black">
-                        <i data-lucide="play" id="play-icon"></i>
+                    <button onclick="prev()" class="text-zinc-400 hover:text-white"><i data-lucide="skip-back" fill="currentColor"></i></button>
+                    <button id="play-btn" onclick="toggle()" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition shadow-lg">
+                        <i data-lucide="play" id="play-icon" fill="black"></i>
                     </button>
-                    <button onclick="nextSong()"><i data-lucide="skip-forward"></i></button>
+                    <button onclick="next()" class="text-zinc-400 hover:text-white"><i data-lucide="skip-forward" fill="currentColor"></i></button>
+                </div>
+
+                <div class="flex items-center gap-3 px-10 text-zinc-500">
+                    <i data-lucide="volume-2" class="w-4 h-4"></i>
+                    <input type="range" id="volume" min="0" max="1" step="0.1" value="0.8" class="flex-1 h-1">
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let songs = [];
-        let currentIdx = 0;
-        const audio = document.getElementById('main-audio');
-        const playIcon = document.getElementById('play-icon');
+        let songs = [], filtered = [], cur = 0;
+        const audio = document.getElementById('player'), playIcon = document.getElementById('play-icon'), disc = document.getElementById('disc-container');
 
-        async function init() {
-            const res = await fetch('/api/music');
-            songs = await res.json();
-            renderPlaylist();
-            lucide.createIcons();
+        async function load() {
+            const r = await fetch('/api/music');
+            songs = await r.json(); filtered = songs;
+            render();
         }
 
-        function renderPlaylist() {
+        function render() {
             const container = document.getElementById('playlist');
-            container.innerHTML = songs.map((s, i) => `
-                <div onclick="playSong(${i})" class="p-4 bg-zinc-900/50 rounded-xl cursor-pointer hover:bg-zinc-800 transition song-item" id="song-${i}">
-                    <p class="font-medium truncate">${s.name}</p>
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="glass p-20 rounded-3xl text-center text-zinc-500">Trống rỗng. Hãy tải bài nhạc đầu tiên lên!</div>';
+                return;
+            }
+            container.innerHTML = filtered.map((s, i) => `
+                <div onclick="play(${i})" class="flex items-center justify-between p-4 glass rounded-2xl cursor-pointer transition song-item" id="item-${i}">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center text-emerald-500"><i data-lucide="music-2" class="w-4 h-4"></i></div>
+                        <div><h4 class="font-semibold text-sm truncate w-48 md:w-80">${s.name}</h4><p class="text-[10px] text-zinc-500 uppercase font-bold">${s.size}</p></div>
+                    </div>
+                    <a href="${s.url}" download class="p-2 text-zinc-600 hover:text-emerald-500" onclick="event.stopPropagation()"><i data-lucide="download-cloud" class="w-5 h-5"></i></a>
                 </div>
             `).join('');
-        }
-
-        function playSong(i) {
-            currentIdx = i;
-            audio.src = songs[i].url;
-            document.getElementById('current-title').innerText = songs[i].name;
-            
-            document.querySelectorAll('.song-item').forEach(el => el.classList.remove('active-song'));
-            document.getElementById(`song-${i}`).classList.add('active-song');
-            
-            audio.play();
-            updateIcon(true);
-        }
-
-        function togglePlay() {
-            if (audio.paused) { audio.play(); updateIcon(true); }
-            else { audio.pause(); updateIcon(false); }
-        }
-
-        function updateIcon(playing) {
-            playIcon.setAttribute('data-lucide', playing ? 'pause' : 'play');
             lucide.createIcons();
         }
 
-        function nextSong() { playSong((currentIdx + 1) % songs.length); }
-        function prevSong() { playSong((currentIdx - 1 + songs.length) % songs.length); }
+        function play(i) {
+            cur = i; const s = filtered[i];
+            audio.src = s.url;
+            document.getElementById('song-title').innerText = s.name;
+            document.getElementById('song-size').innerText = s.size;
+            document.querySelectorAll('.song-item').forEach(el => el.classList.remove('active-song'));
+            document.getElementById(`item-${i}`).classList.add('active-song');
+            audio.play(); updateUI(true);
+        }
 
-        audio.onended = nextSong;
-        init();
+        function toggle() { audio.paused ? (audio.play(), updateUI(true)) : (audio.pause(), updateUI(false)); }
+        function updateUI(p) { 
+            playIcon.setAttribute('data-lucide', p ? 'pause' : 'play'); 
+            disc.classList.toggle('rotating', p);
+            lucide.createIcons(); 
+        }
+
+        function searchSongs() {
+            const q = document.getElementById('search').value.toLowerCase();
+            filtered = songs.filter(s => s.name.toLowerCase().includes(q));
+            render();
+        }
+
+        async function uploadAction() {
+            const f = document.getElementById('fileInput').files[0]; if (!f) return;
+            const btn = document.querySelector('label span'); btn.innerText = "Đang tải...";
+            
+            const r = await fetch('/api/music', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: f.name, fileType: f.type }) });
+            const { uploadUrl } = await r.json();
+            
+            await fetch(uploadUrl, { method: 'PUT', body: f, headers: { 'Content-Type': f.type } });
+            btn.innerText = "Tải lên"; load();
+        }
+
+        // Seek & Volume
+        audio.ontimeupdate = () => {
+            const p = (audio.currentTime / audio.duration) * 100 || 0;
+            document.getElementById('progress').value = p;
+            document.getElementById('time-now').innerText = fmt(audio.currentTime);
+            document.getElementById('time-total').innerText = fmt(audio.duration || 0);
+        };
+        document.getElementById('progress').oninput = (e) => audio.currentTime = (e.target.value / 100) * audio.duration;
+        document.getElementById('volume').oninput = (e) => audio.volume = e.target.value;
+        function fmt(s) { const m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
+        function next() { play((cur + 1) % filtered.length); }
+        function prev() { play((cur - 1 + filtered.length) % filtered.length); }
+        audio.onended = next;
+
+        load();
     </script>
 </body>
 </html>
